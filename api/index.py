@@ -1,4 +1,4 @@
-from CODE.app import app  # import your Flask app
+from CODE.app import app
 
 def handler(request):
     return app(request)
