@@ -2,7 +2,7 @@ Flask
 joblib
 pandas
 geopy
-mysqlclient
 gunicorn
 scikit-learn
 numpy
+psycopg2-binary

@@ -40,10 +40,16 @@ def add_donor():
         """
 
         values = (
-            data['name'], int(data['age']), float(data['weight']),
-            float(data['hemoglobin']), data['blood_group'],
-            data['last_donation'], data['contact'], data['address'],
-            float(data['latitude']), float(data['longitude'])
+            data['name'],
+            int(data['age']),
+            float(data['weight']),
+            float(data['hemoglobin']),
+            data['blood_group'],
+            data['last_donation'],
+            data['contact'],
+            data['address'],
+            float(data['latitude']),
+            float(data['longitude'])
         )
 
         cursor.execute(query, values)
@@ -67,7 +73,7 @@ def find_donors():
         user_lat = float(request.form['user_lat'])
         user_lon = float(request.form['user_lon'])
 
-        cursor.execute("SELECT * FROM donors WHERE blood_group=%s", (blood_group,))
+        cursor.execute("SELECT * FROM donors WHERE blood_group = %s", (blood_group,))
         rows = cursor.fetchall()
 
         eligible_donors = []
@@ -75,13 +81,14 @@ def find_donors():
 
         for donor in rows:
             (
-                id, name, age, weight, hemoglobin, bg,
-                last_donation, contact, address, lat, lon
+                donor_id, name, age, weight, hemoglobin,
+                bg, last_donation, contact, address, lat, lon
             ) = donor
 
             last_donation_date = pd.to_datetime(last_donation).date()
             last_donation_days = (today - last_donation_date).days
 
+            # ML prediction
             features = [[age, weight, hemoglobin, last_donation_days]]
             if model.predict(features)[0] == 1:
 
@@ -94,6 +101,7 @@ def find_donors():
                     "distance_km": round(distance, 2)
                 })
 
+        # Sort by nearest first
         eligible_donors.sort(key=lambda x: x['distance_km'])
 
         if not eligible_donors:
@@ -105,3 +113,5 @@ def find_donors():
     except Exception as e:
         return render_template('find_donor.html', message=f"Error: {e}")
 
+
+# ⚠️ IMPORTANT: no app.run() here — Render uses Gunicorn
