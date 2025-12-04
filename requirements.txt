@@ -1,5 +1,6 @@
 Flask
+joblib
 pandas
-numpy
-scikit-learn
+geopy
+mysqlclient
 gunicorn
