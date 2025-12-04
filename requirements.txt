@@ -4,3 +4,5 @@ pandas
 geopy
 mysqlclient
 gunicorn
+scikit-learn
+numpy
