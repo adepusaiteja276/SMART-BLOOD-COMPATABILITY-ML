@@ -1,21 +1,34 @@
 from flask import Flask, request, render_template
 import joblib, pandas as pd
 from datetime import datetime
-import MySQLdb
 from geopy.distance import geodesic
+
+# Try importing MySQLdb safely
+try:
+    import MySQLdb
+except:
+    MySQLdb = None  # Render will not crash here
 
 app = Flask(__name__)
 
 # ------------------- Load ML model -------------------
-model = joblib.load('donor_eligibility_model.pkl')
+# Correct path for Render: model is inside CODE folder
+model = joblib.load('CODE/donor_eligibility_model.pkl')
 
 # ------------------- MySQL Configuration -------------------
-db = MySQLdb.connect(
-    host="localhost",
-    user="blooduser",
-    passwd="yourpassword",
-    db="blood_donation"
-)
+db = None
+if MySQLdb:
+    try:
+        db = MySQLdb.connect(
+            host="localhost",        # This will NOT work on Render
+            user="blooduser",
+            passwd="yourpassword",
+            db="blood_donation"
+        )
+    except Exception as e:
+        print("⚠️ Unable to connect to MySQL:", e)
+        db = None   # prevent crashes
+
 # ------------------- Home -------------------
 @app.route('/')
 def home():
@@ -29,6 +42,9 @@ def add_donor_form():
 # ------------------- Insert donor -------------------
 @app.route('/add_donor', methods=['POST'])
 def add_donor():
+    if db is None:
+        return render_template('add_donor.html', message="⚠️ Database not available on Render")
+
     try:
         data = request.form
         cursor = db.cursor()
@@ -55,12 +71,14 @@ def find_donor_form():
 # ------------------- Process find donor -------------------
 @app.route('/find_donors', methods=['POST'])
 def find_donors():
+    if db is None:
+        return render_template('find_donor.html', message="⚠️ Database not available on Render")
+
     try:
         blood_group = request.form['blood_group']
         user_lat = float(request.form['user_lat'])
         user_lon = float(request.form['user_lon'])
 
-        # 🔹 Change this to your desired max distance
         MAX_DISTANCE_KM = 10000000
 
         cursor = db.cursor(MySQLdb.cursors.DictCursor)
@@ -71,31 +89,24 @@ def find_donors():
         today = datetime.now().date()
 
         for donor in donors:
-            # Parse last donation date
             last_donation = donor['last_donation']
             if isinstance(last_donation, str):
                 last_donation = pd.to_datetime(last_donation)
 
-            last_donation_date = (
-                last_donation.date() if hasattr(last_donation, 'date') else last_donation
-            )
+            last_donation_date = last_donation.date() if hasattr(last_donation, 'date') else last_donation
             last_donation_days = (today - last_donation_date).days
 
-            # Predict eligibility
             features = [[donor['age'], donor['weight'], donor['hemoglobin'], last_donation_days]]
             if model.predict(features)[0] == 1:
-                # Compute distance
                 distance = geodesic(
                     (user_lat, user_lon),
                     (donor['latitude'], donor['longitude'])
                 ).km
 
-                # Filter by max distance
                 if distance <= MAX_DISTANCE_KM:
                     donor['distance_km'] = round(distance, 2)
                     eligible_donors.append(donor)
 
-        # Sort by nearest
         eligible_donors.sort(key=lambda x: x['distance_km'])
 
         if not eligible_donors:
@@ -108,5 +119,5 @@ def find_donors():
     except Exception as e:
         return render_template('find_donor.html', message=f"⚠️ Error: {e}")
 
-if __name__ == '__main__':
-    app.run(debug=True)
+
+# REMOVE app.run(), Render uses gunicorn
