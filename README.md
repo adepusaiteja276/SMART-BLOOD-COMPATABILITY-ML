@@ -1,3 +1,4 @@
+
 🩸 Smart Blood Compatibility & Matching System
 
 This project is a Python-based application that uses a Machine Learning model to automate the blood donor–recipient matching process.
@@ -56,3 +57,11 @@ No external frontend framework
 Simple Flask-based UI
 
 Screens and UI flow documented in SCREENS.docx
+
+
+
+🚀 Live Demo
+
+🔗 https://smart-blood-compatability-ml.onrender.com/
+
+Try the deployed web application on Render.
