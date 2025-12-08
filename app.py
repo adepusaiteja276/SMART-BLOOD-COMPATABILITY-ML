@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template
+from flask import Flask, request, render_template, jsonify
 import joblib
 import pandas as pd
 from datetime import datetime
@@ -6,20 +6,38 @@ import psycopg2
 import os
 from geopy.distance import geodesic
 
-app = Flask(__name__)
+# Explicit template folder (important for Render)
+app = Flask(__name__, template_folder='templates')
 
-# ---------------- Get DB connection when needed ----------------
+
+# ---------------- Database Connection ----------------
 def get_db():
     DATABASE_URL = os.getenv("DATABASE_URL")
     return psycopg2.connect(DATABASE_URL, sslmode="require")
 
-# ---------------- Load ML model lazily ----------------
+
+# ---------------- Lazy Model Loading ----------------
 _model = None
 def get_model():
     global _model
     if _model is None:
         _model = joblib.load('donor_eligibility_model.pkl')
     return _model
+
+
+# ---------------- Debug Route (Temporary for Render) ----------------
+@app.route('/debug_templates')
+def debug_templates():
+    """
+    Shows what Render server sees inside the templates folder.
+    Use this to fix TemplateNotFound issues.
+    """
+    path = os.path.join(os.getcwd(), 'templates')
+    return jsonify({
+        "cwd": os.getcwd(),
+        "templates_exists": os.path.isdir(path),
+        "templates_list": os.listdir(path) if os.path.isdir(path) else None
+    })
 
 
 # ---------------- Home ----------------
@@ -114,6 +132,7 @@ def find_donors():
             features = [[age, weight, hemoglobin, last_donation_days]]
             if model.predict(features)[0] == 1:
 
+                # Distance calculation
                 distance = geodesic((user_lat, user_lon), (lat, lon)).km
 
                 eligible_donors.append({
@@ -123,6 +142,7 @@ def find_donors():
                     "distance_km": round(distance, 2)
                 })
 
+        # Sort by nearest donors
         eligible_donors.sort(key=lambda x: x['distance_km'])
 
         if not eligible_donors:
@@ -134,4 +154,5 @@ def find_donors():
     except Exception as e:
         return render_template('find_donor.html', message=f"Error: {e}")
 
-# ⚠️ No app.run()
+
+# No app.run() for production (Render uses Gunicorn)
