@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Add Donor</title>
+</head>
+<body>
+    <h2>Add Donor</h2>
+
+    {% if message %}
+        <p>{{ message }}</p>
+    {% endif %}
+
+    <form method="POST" action="/add_donor">
+        Name: <input type="text" name="name" required><br>
+        Age: <input type="number" name="age" required><br>
+        Weight: <input type="number" name="weight" required><br>
+        Hemoglobin: <input type="number" name="hemoglobin" required><br>
+        Blood Group: <input type="text" name="blood_group" required><br>
+        Last Donation: <input type="date" name="last_donation" required><br>
+        Contact: <input type="text" name="contact" required><br>
+        Address: <input type="text" name="address" required><br>
+        Latitude: <input type="text" name="latitude" required><br>
+        Longitude: <input type="text" name="longitude" required><br><br>
+
+        <button type="submit">Add Donor</button>
+    </form>
+</body>
+</html>
