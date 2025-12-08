@@ -5,6 +5,7 @@ from datetime import datetime
 import psycopg2
 import os
 from geopy.distance import geodesic
+import traceback
 
 # Explicit template folder (important for Render)
 app = Flask(__name__, template_folder='templates')
@@ -12,8 +13,51 @@ app = Flask(__name__, template_folder='templates')
 
 # ---------------- Database Connection ----------------
 def get_db():
+    """
+    Returns a new psycopg2 connection using DATABASE_URL from environment.
+    Render usually requires sslmode='require'.
+    """
     DATABASE_URL = os.getenv("DATABASE_URL")
+    if not DATABASE_URL:
+        raise RuntimeError("DATABASE_URL environment variable is not set.")
     return psycopg2.connect(DATABASE_URL, sslmode="require")
+
+
+def create_donors_table():
+    """
+    Create the donors table if it doesn't exist yet.
+    This runs at app startup and is idempotent.
+    """
+    sql = """
+    CREATE TABLE IF NOT EXISTS donors (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(100),
+        age INT,
+        weight FLOAT,
+        hemoglobin FLOAT,
+        blood_group VARCHAR(10),
+        last_donation DATE,
+        contact VARCHAR(20),
+        address TEXT,
+        latitude FLOAT,
+        longitude FLOAT
+    );
+    """
+    conn = None
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute(sql)
+        conn.commit()
+        cur.close()
+    except Exception:
+        # Log stacktrace to stderr so Render logs capture it
+        traceback.print_exc()
+        if conn:
+            conn.rollback()
+    finally:
+        if conn:
+            conn.close()
 
 
 # ---------------- Lazy Model Loading ----------------
@@ -58,6 +102,32 @@ def add_donor():
     try:
         data = request.form
 
+        # Convert values safely (if form fields empty, handle gracefully)
+        def safe_int(x):
+            try:
+                return int(x)
+            except Exception:
+                return None
+
+        def safe_float(x):
+            try:
+                return float(x)
+            except Exception:
+                return None
+
+        values = (
+            data.get('name'),
+            safe_int(data.get('age')),
+            safe_float(data.get('weight')),
+            safe_float(data.get('hemoglobin')),
+            data.get('blood_group'),
+            data.get('last_donation') or None,
+            data.get('contact'),
+            data.get('address'),
+            safe_float(data.get('latitude')),
+            safe_float(data.get('longitude'))
+        )
+
         db = get_db()
         cursor = db.cursor()
 
@@ -66,19 +136,6 @@ def add_donor():
             (name, age, weight, hemoglobin, blood_group, last_donation, contact, address, latitude, longitude)
             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
         """
-
-        values = (
-            data['name'],
-            int(data['age']),
-            float(data['weight']),
-            float(data['hemoglobin']),
-            data['blood_group'],
-            data['last_donation'],
-            data['contact'],
-            data['address'],
-            float(data['latitude']),
-            float(data['longitude'])
-        )
 
         cursor.execute(query, values)
         db.commit()
@@ -89,6 +146,8 @@ def add_donor():
         return render_template('add_donor.html', message="Donor added successfully!")
 
     except Exception as e:
+        # print stacktrace to logs and show friendly message on page
+        traceback.print_exc()
         return render_template('add_donor.html', message=f"Error: {e}")
 
 
@@ -125,14 +184,26 @@ def find_donors():
                 bg, last_donation, contact, address, lat, lon
             ) = donor
 
+            # handle null last_donation safely
+            if last_donation is None:
+                continue
+
             last_donation_date = pd.to_datetime(last_donation).date()
             last_donation_days = (today - last_donation_date).days
 
             # ML prediction
             features = [[age, weight, hemoglobin, last_donation_days]]
-            if model.predict(features)[0] == 1:
+            try:
+                pred = model.predict(features)[0]
+            except Exception:
+                # if model fails, skip this donor
+                continue
 
-                # Distance calculation
+            if pred == 1:
+                # Distance calculation (if lat/lon present)
+                if lat is None or lon is None:
+                    continue
+
                 distance = geodesic((user_lat, user_lon), (lat, lon)).km
 
                 eligible_donors.append({
@@ -152,7 +223,16 @@ def find_donors():
         return render_template('find_donor.html', donors=eligible_donors)
 
     except Exception as e:
+        traceback.print_exc()
         return render_template('find_donor.html', message=f"Error: {e}")
 
+
+# ---------------- Run create table once at startup ----------------
+# This will run when the module is imported (Gunicorn imports the app)
+try:
+    create_donors_table()
+except Exception:
+    # If anything goes wrong, we logged it already; continue so the app can still run
+    pass
 
 # No app.run() for production (Render uses Gunicorn)
