@@ -1,35 +1,50 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Find Donor</title>
-</head>
-<body>
-    <h2>Find Donor</h2>
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+
+    <h2 class="text-center mb-3">Find Donor</h2>
 
     {% if message %}
-        <p>{{ message }}</p>
+        <div class="alert alert-warning">{{ message }}</div>
     {% endif %}
 
     <form method="POST" action="/find_donors">
-        Blood Group: <input type="text" name="blood_group" required><br>
-        Your Latitude: <input type="text" name="user_lat" required><br>
-        Your Longitude: <input type="text" name="user_lon" required><br><br>
+        <div class="mb-3">
+            <label>Blood Group:</label>
+            <select name="blood_group" class="form-control" required>
+                <option>A+</option><option>A-</option>
+                <option>B+</option><option>B-</option>
+                <option>O+</option><option>O-</option>
+                <option>AB+</option><option>AB-</option>
+            </select>
+        </div>
 
-        <button type="submit">Search</button>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label>Your Latitude:</label>
+                <input class="form-control" name="user_lat" required>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label>Your Longitude:</label>
+                <input class="form-control" name="user_lon" required>
+            </div>
+        </div>
+
+        <button class="btn btn-success w-100">Search</button>
     </form>
 
     {% if donors %}
-        <h3>Eligible Donors</h3>
-        <ul>
+        <h3 class="mt-4">Eligible Donors:</h3>
+        <ul class="list-group">
             {% for d in donors %}
-                <li>
-                    <strong>{{ d.name }}</strong> - {{ d.distance_km }} km away  
-                    <br>Contact: {{ d.contact }}
-                    <br>Address: {{ d.address }}
+                <li class="list-group-item">
+                    <strong>{{ d.name }}</strong><br>
+                    Contact: {{ d.contact }}<br>
+                    Address: {{ d.address }}<br>
+                    Distance: <b>{{ d.distance_km }} km</b>
                 </li>
-                <br>
             {% endfor %}
         </ul>
     {% endif %}
-</body>
-</html>
+</div>
+{% endblock %}

@@ -1,12 +1,10 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Home - Smart Blood Compatibility</title>
-</head>
-<body>
-    <h1>Welcome to Smart Blood Compatibility System</h1>
+{% extends "base.html" %}
+{% block content %}
+<div class="text-center">
+    <h1>Welcome to Smart Blood Compatibility App</h1>
+    <p class="lead">Find donors, add donors, manage blood donation needs.</p>
 
-    <a href="/add_donor_form">Add Donor</a><br><br>
-    <a href="/find_donor_form">Find Donor</a>
-</body>
-</html>
+    <a class="btn btn-primary btn-lg mt-3" href="/add_donor_form">Add Donor</a>
+    <a class="btn btn-success btn-lg mt-3" href="/find_donor_form">Find Donor</a>
+</div>
+{% endblock %}
