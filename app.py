@@ -20,7 +20,7 @@ def get_db():
     DATABASE_URL = os.getenv("DATABASE_URL")
     if not DATABASE_URL:
         raise RuntimeError("DATABASE_URL environment variable is not set.")
-    return psycopg2.connect(DATABASE_URL, sslmode="require")
+    return psycopg2.connect(DATABASE_URL)
 
 
 def create_donors_table():
